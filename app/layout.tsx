@@ -8,6 +8,7 @@ import { UserProvider } from "@/components/user-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
+
 export const metadata: Metadata = {
   title: "FemiliKite.online - Temporary Email Service",
   description: "Create disposable inboxes in seconds with FemiliKite.online",
@@ -54,6 +55,3 @@ export default function RootLayout({
     </html>
   )
 }
-
-
-import './globals.css'

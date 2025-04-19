@@ -1,4 +1,4 @@
-// File: /Users/babahajim/Desktop/FemiliKite_Mailbox/app/layout.tsx
+// File: /home/user/FemiliKite_Mailbox/app/layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

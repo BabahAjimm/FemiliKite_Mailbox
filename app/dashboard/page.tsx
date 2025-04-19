@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { RefreshCw, Lock, Trash2, Plus, Clock, Check, AlertCircle, Sparkles, Shield } from "lucide-react"
@@ -17,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { DialogClose } from "@radix-ui/react-dialog"
 
 // Types for our inboxes
 type InboxType = "temporary" | "claimed"
@@ -31,33 +33,9 @@ interface Inbox {
   claimedUntil?: string
 }
 
-// Mock data for inboxes
-const initialInboxes: Inbox[] = [
-  {
-    id: 1,
-    name: "random123@femilikite.online",
-    expiresIn: "22h 15m",
-    type: "temporary",
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "shopping542@femilikite.online",
-    expiresIn: "10h 45m",
-    type: "temporary",
-    status: "active",
-  },
-  {
-    id: 3,
-    name: "newsletter87@femilikite.online",
-    expiresIn: "5h 30m",
-    type: "temporary",
-    status: "active",
-  },
-]
-
 export default function DashboardPage() {
-  const [inboxes, setInboxes] = useState<Inbox[]>(initialInboxes)
+  const router = useRouter()
+  const [inboxes, setInboxes] = useState<Inbox[]>([])
   const [userPlan, setUserPlan] = useState<"free" | "premium">("free")
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [customInboxName, setCustomInboxName] = useState("")
@@ -65,42 +43,56 @@ export default function DashboardPage() {
   const [errorMessage, setErrorMessage] = useState("")
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false)
+  const [newOwnerEmail, setNewOwnerEmail] = useState("")
+  const [transferInbox, setTransferInbox] = useState<Inbox | null>(null)
+  const [transferError, setTransferError] = useState<string | null>(null);
 
   // Only run client-side code after component is mounted
   useEffect(() => {
     setIsMounted(true)
 
-    // Check if user has upgraded to premium
+    // Load claimed inboxes from localStorage
+    const claimedInboxesData = localStorage.getItem("claimedInboxes")
+    const claimedInboxes: Inbox[] = claimedInboxesData ? JSON.parse(claimedInboxesData) : []
+
+    // Load user's plan from localStorage
     const plan = localStorage.getItem("userPlan")
     if (plan === "premium") {
       setUserPlan("premium")
+    }
 
-      // Add a claimed inbox for premium users as an example
-      if (!inboxes.some((inbox) => inbox.type === "claimed")) {
-        setInboxes((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            name: "premium.user@femilikite.online",
-            expiresIn: "N/A",
-            type: "claimed",
-            status: "active",
-            claimedUntil: "April 10, 2026 (1 year)",
-          },
-        ])
-      }
-    } else {
-      // Show upgrade prompt after 2 seconds for free users
+    // Load temporary inboxes (mock data, can be replaced with API call)
+    const temporaryInboxes: Inbox[] = [
+      { id: 1, name: "random123@femilikite.online", expiresIn: "22h 15m", type: "temporary", status: "active" },
+      { id: 2, name: "shopping542@femilikite.online", expiresIn: "10h 45m", type: "temporary", status: "active" },
+      { id: 3, name: "newsletter87@femilikite.online", expiresIn: "5h 30m", type: "temporary", status: "active" },
+    ]
+
+    // Combine claimed and temporary inboxes
+    setInboxes([
+      ...claimedInboxes.map((item) => ({ ...item, type: "claimed", id: Date.now() })),
+      ...temporaryInboxes,
+    ])
+
+    if (plan !== "premium") {
+
+     // Show upgrade prompt after 2 seconds for free users
       const timer = setTimeout(() => {
         setShowUpgradePrompt(true)
       }, 2000)
       return () => clearTimeout(timer)
+    } else {
+      setShowUpgradePrompt(false)
     }
   }, [])
 
   const handleDelete = (id: number) => {
-    setInboxes(inboxes.filter((inbox) => inbox.id !== id))
-  }
+    // Remove from localStorage if it's a claimed inbox
+     const claimedInboxes = JSON.parse(localStorage.getItem("claimedInboxes") || "[]")
+     localStorage.setItem("claimedInboxes", JSON.stringify(claimedInboxes.filter((inbox:any) => inbox.id !== id)))
+     setInboxes(inboxes.filter((inbox) => inbox.id !== id));
+  };
 
   const handleLock = (id: number) => {
     if (userPlan === "free") {
@@ -108,12 +100,47 @@ export default function DashboardPage() {
       return
     }
 
-    setInboxes(
-      inboxes.map((inbox) =>
-        inbox.id === id ? { ...inbox, status: inbox.status === "locked" ? "active" : "locked" } : inbox,
-      ),
+    setInboxes((prevInboxes) => {
+      return prevInboxes.map((inbox) => {
+        if (inbox.id === id) {
+          const newStatus = inbox.status === "locked" ? "active" : "locked";
+          const newExpiresIn = newStatus === "locked" ? "Locked - No expiration" : "24h 00m";
+          return { ...inbox, status: newStatus, expiresIn: newExpiresIn };
+        } else {
+          return inbox;
+        }
+      });
+    }
     )
   }
+  const handleRefresh = (id: number) => {
+    console.log("Refresh ", id)
+  }
+
+
+  const handleTransferOwnership = (inbox: Inbox) => {
+    if(userPlan !== "premium"){
+      alert("Transfer inbox is a premium feature. Please upgrade to premium.")
+      return
+    }
+    setTransferInbox(inbox)
+    setTransferDialogOpen(true);
+  }
+  const handleTransfer = () => {
+    if (!isValidEmail(newOwnerEmail)) {
+      setTransferError("Invalid email address");
+      return;
+    }
+    if (inboxes.some((inbox) => inbox.name === `${newOwnerEmail}`)) {
+      setTransferError("This email is already taken");
+      return;
+    }
+    // Add here the logic to transfer
+    console.log("transfer ", newOwnerEmail)
+    setTransferDialogOpen(false);
+    setTransferError(null)
+    setNewOwnerEmail("")
+  };
 
   const handleCreateInbox = () => {
     if (userPlan === "free") {
@@ -157,8 +184,18 @@ export default function DashboardPage() {
     }
   }
 
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
   // Filter inboxes based on active tab
-  const filteredInboxes = activeTab === "all" ? inboxes : inboxes.filter((inbox) => inbox.type === activeTab)
+  const filteredInboxes =
+    activeTab === "all"
+      ? inboxes
+      : activeTab === "temporary"
+      ? inboxes.filter((inbox) => inbox.type === "temporary")
+      : inboxes.filter((inbox) => inbox.type === "claimed")
 
   // If not mounted yet (server-side), render a simpler version
   if (!isMounted) {
@@ -294,13 +331,14 @@ export default function DashboardPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredInboxes.map((inbox) => (
             <Card
+              onClick={() => {
+               router.push(`/dashboard/inbox/${encodeURIComponent(inbox.name)}`) }}
               key={inbox.id}
-              className={`group transition-all duration-300 hover:shadow-md ${
-                inbox.status === "locked"
-                  ? "border-[#0033cc] bg-gradient-to-br from-white to-[#0033cc]/5"
-                  : inbox.type === "claimed"
-                    ? "border-[#cc0000] bg-gradient-to-br from-white to-[#cc0000]/5"
-                    : "hover:-translate-y-1"
+              className={`group transition-all duration-300 hover:shadow-md ${inbox.status === "locked"
+                ? "border-[#0033cc] bg-gradient-to-br from-white to-[#0033cc]/5"
+                : inbox.type === "claimed"
+                ? "border-[#cc0000] bg-gradient-to-br from-white to-[#cc0000]/5"
+                : "hover:-translate-y-1"
               }`}
             >
               <CardHeader className="pb-2">
@@ -334,8 +372,7 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-1">
                       <Clock className="h-4 w-4 text-[#cc0000]" />
                       <span>
-                        {inbox.status === "locked" ? "Locked - No expiration" : `Expires in ${inbox.expiresIn}`}
-                      </span>
+                      {inbox.expiresIn}                      </span>
                     </div>
                   )}
                 </div>
@@ -346,7 +383,7 @@ export default function DashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="group-hover:border-[#0033cc] group-hover:text-[#0033cc] transition-colors duration-300"
+                      className="group-hover:border-[#0033cc] group-hover:text-[#0033cc] transition-colors duration-300" onClick={(event) => {event.stopPropagation();handleRefresh(inbox.id)}}
                     >
                       <RefreshCw className="mr-1 h-4 w-4" />
                       Refresh
@@ -356,15 +393,14 @@ export default function DashboardPage() {
                         <TooltipTrigger asChild>
                           <Button
                             variant="outline"
-                            size="sm"
-                            onClick={() => handleLock(inbox.id)}
-                            disabled={userPlan === "free"}
-                            className={
-                              inbox.status === "locked"
-                                ? "border-[#0033cc] text-[#0033cc] hover:bg-[#0033cc]/10"
-                                : "group-hover:border-[#cc0000] group-hover:text-[#cc0000] transition-colors duration-300"
-                            }
-                          >
+                            size="sm" onClick={() => handleLock(inbox.id)}                            
+                              disabled={userPlan === "free"}
+                              className={
+                                inbox.status === "locked"
+                                  ? "border-[#0033cc] text-[#0033cc] hover:bg-[#0033cc]/10"
+                                  : "group-hover:border-[#cc0000] group-hover:text-[#cc0000] transition-colors duration-300"
+                              }
+                            >
                             <Lock className="mr-1 h-4 w-4" />
                             {inbox.status === "locked" ? "Unlock" : "Lock"}
                           </Button>
@@ -381,11 +417,22 @@ export default function DashboardPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-[#cc0000] hover:bg-[#cc0000]/10 hover:border-[#cc0000]"
-                  onClick={() => handleDelete(inbox.id)}
+                  onClick={(event) => {event.stopPropagation();handleTransferOwnership(inbox)}}
+                  className={`text-[#0033cc] hover:bg-[#0033cc]/10 hover:border-[#0033cc] transition-colors duration-300 ${inbox.type !== "claimed" ? "hidden" : ""} `}
                 >
-                  <Trash2 className="mr-1 h-4 w-4" />
-                  Delete
+                  <Shield className="mr-1 h-4 w-4" />
+                  Transfer Ownership
+                </Button>
+
+
+                <Button
+                
+                  
+                  size="sm" onClick={(event) => {event.stopPropagation(); handleDelete(inbox.id)}}
+                  className="text-white bg-[#cc0000] hover:bg-[#cc0000]/10 hover:text-[#cc0000] z-[10]"
+                 
+                >
+                  <Trash2 className="mr-1 h-4 w-4" />Delete
                 </Button>
               </CardFooter>
             </Card>
@@ -474,6 +521,43 @@ export default function DashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+         {/* Transfer Dialog */}
+         <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Transfer Ownership</DialogTitle>
+            <DialogDescription>Enter the new owner's email address</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">New owner's email</Label>
+              <Input
+                id="email"
+                placeholder="New owner's email"
+                type="email"
+                value={newOwnerEmail}
+                onChange={(e) => {setNewOwnerEmail(e.target.value)
+                setTransferError(null)}}
+              />
+              {transferError && <p className="text-sm text-[#cc0000]">{transferError}</p>}
+            </div>
+          </div>
+          <DialogFooter>
+          <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              onClick={handleTransfer}
+              disabled={!isValidEmail(newOwnerEmail)}
+              className="bg-gradient-to-r from-[#0033cc] to-[#002299] text-white hover:from-[#002299] hover:to-[#001166]"
+            >
+              Transfer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+

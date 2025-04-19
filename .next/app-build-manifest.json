@@ -25,6 +25,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/billing/page.js"
+    ],
+    "/dashboard/inbox/[inboxName]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/inbox/[inboxName]/page.js"
     ]
   }
 }

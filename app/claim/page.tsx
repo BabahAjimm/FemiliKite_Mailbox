@@ -32,6 +32,7 @@ export default function ClaimInboxPage() {
   useEffect(() => {
     setIsMounted(true)
   }, [])
+  useEffect(() => {setCheckResult(null)}, [inboxName])
 
   const handleCheckAvailability = () => {
     if (!inboxName) return
@@ -54,11 +55,23 @@ export default function ClaimInboxPage() {
       setPaymentDialogOpen(false)
 
       // Store the claimed inbox in localStorage
-      const claimedInboxes = JSON.parse(localStorage.getItem("claimedInboxes") || "[]")
+      const claimedInboxes = JSON.parse(localStorage.getItem("claimedInboxes") || "[]");
+
+      // Calculate claimedUntil date based on subscriptionPeriod
+      const now = new Date();
+      let claimedUntilDate: Date;
+      if (subscriptionPeriod === "monthly") {
+        claimedUntilDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      } else { // yearly
+        claimedUntilDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+      }
+      const claimedUntil = claimedUntilDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+
       claimedInboxes.push({
         name: `${inboxName}@femilikite.online`,
-        claimedUntil: subscriptionPeriod === "monthly" ? `May 10, 2025 (1 month)` : `April 10, 2026 (1 year)`,
+        claimedUntil: claimedUntil,
         enableGmail: enableGmail,
+        subscriptionPeriod: subscriptionPeriod,
       })
       localStorage.setItem("claimedInboxes", JSON.stringify(claimedInboxes))
 
@@ -192,7 +205,7 @@ export default function ClaimInboxPage() {
               <div className="mt-4 rounded-md bg-gradient-to-r from-[#f8f9fa] to-[#f1f3f5] p-4">
                 <p className="font-medium text-[#cc0000] flex items-center gap-1">
                   <Shield className="h-4 w-4" />
-                  $7/month additional
+                  ${subscriptionPeriod === "monthly" ? "8/month" : "80/year"} additional
                 </p>
                 <p className="text-muted-foreground text-sm mt-1">
                   This feature allows you to use your custom inbox with Google services and adds an extra layer of
@@ -251,7 +264,7 @@ export default function ClaimInboxPage() {
                   Gmail Login (Google SSO)
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Additional ${subscriptionPeriod === "monthly" ? "7/month" : "70/year"}
+                  Additional ${subscriptionPeriod === "monthly" ? "8/month" : "80/year"}
                 </p>
               </div>
             )}
@@ -292,8 +305,8 @@ export default function ClaimInboxPage() {
 
   function calculateTotal() {
     let base = subscriptionPeriod === "monthly" ? 1 : 10
-    if (enableGmail) {
-      base += subscriptionPeriod === "monthly" ? 7 : 70
+     if (enableGmail) {
+      base += subscriptionPeriod === "monthly" ? 8 : 80
     }
     return `$${base}`
   }

@@ -232,7 +232,7 @@ export default function BillingPage() {
           <div className="col-span-1"></div>
           <div className="text-center font-medium">Free</div>
           <div className="text-center font-medium text-[#0033cc]">Premium</div>
-          <div className="text-center font-medium">Claimed</div>
+          <div className="text-center font-medium border-b-2">Claimed</div>
 
           {[
             { name: "Inboxes per day", icon: Mail, free: "20", premium: "Unlimited", claimed: "1 permanent" },
@@ -248,7 +248,7 @@ export default function BillingPage() {
               </div>
               <div className="text-center py-2">{feature.free}</div>
               <div className="text-center py-2 font-medium text-[#0033cc]">{feature.premium}</div>
-              <div className="text-center py-2">{feature.claimed}</div>
+              <div className="text-center py-2"><span className="text-xs">{feature.claimed}</span></div>
             </React.Fragment>
           ))}
         </div>

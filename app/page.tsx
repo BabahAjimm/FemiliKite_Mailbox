@@ -24,10 +24,10 @@ export default function Home() {
               <span className="relative z-10 bg-gradient-to-r from-[#cc0000] to-[#ff3333] bg-clip-text text-transparent">
                 Permanent
               </span>
-              <span className="absolute -bottom-2 left-0 z-0 h-3 w-full bg-gradient-to-r from-[#cc0000]/40 to-[#cc0000]/20"></span>
+              <span className="absolute -bottom-[0.0rem] left-0 z-0 h-[0.375rem] w-full bg-gradient-to-r from-[#cc0000]/40 to-[#cc0000]/20"></span>
             </span>{" "}
             Peace of Mind.
-          </h1>
+          </h1>    
 
           <p className="mt-6 max-w-[600px] text-lg text-muted-foreground">
             Create disposable inboxes in seconds. Protect your privacy without compromising convenience.
